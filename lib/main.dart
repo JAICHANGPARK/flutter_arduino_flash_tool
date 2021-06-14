@@ -1,264 +1,260 @@
-import 'dart:async';
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:filepicker_windows/filepicker_windows.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_cmd_tester/theme.dart';
+
 import 'package:process_run/cmd_run.dart';
+import 'package:provider/provider.dart';
+import 'package:system_theme/system_theme.dart';
+import 'arduino_flash/arduino_flash_app.dart';
+import 'fluent_example/colors.dart';
+import 'fluent_example/forms.dart';
+import 'fluent_example/inputs.dart';
+import 'fluent_example/mobile.dart';
+import 'fluent_example/others.dart';
+import 'fluent_example/settings.dart';
+import 'fluent_example/typography.dart';
 
-final runInShell = Platform.isWindows;
+const String appTitle = 'Fluent UI Showcase for Flutter';
 
-extension IntToString on int {
-  String toHex() => '0x${toRadixString(16)}';
+late bool darkMode;
 
-  String toPadded([int width = 3]) => toString().padLeft(width, '0');
-
-  String toTransport() {
-    switch (this) {
-      case SerialPortTransport.usb:
-        return 'USB';
-      case SerialPortTransport.bluetooth:
-        return 'Bluetooth';
-      case SerialPortTransport.native:
-        return 'Native';
-      default:
-        return 'Unknown';
-    }
-  }
+/// Checks if the current environment is a desktop environment.
+bool get isDesktop {
+  if (kIsWeb) return false;
+  return [
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+  ].contains(defaultTargetPlatform);
 }
 
 void main() async {
-  var cmd = ProcessCmd('echo', ['hello world'], runInShell: runInShell);
-  await runCmd(cmd);
-
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  // The platforms the plugin support (01/04/2021 - DD/MM/YYYY):
+  //   - Windows
+  //   - Web
+  //   - Android
+  if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.android || kIsWeb) {
+    darkMode = await SystemTheme.darkMode;
+    await SystemTheme.accentInstance.load();
+  } else {
+    darkMode = true;
+  }
+  runApp(MyApp());
+  if (isDesktop)
+    doWhenWindowReady(() {
+      final win = appWindow;
+      win.minSize = Size(410, 640);
+      win.size = Size(755, 545);
+      win.alignment = Alignment.center;
+      win.title = appTitle;
+      win.show();
+    });
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return ChangeNotifierProvider(
+      create: (_) => AppTheme(),
+      builder: (context, _) {
+        final appTheme = context.watch<AppTheme>();
+        return FluentApp(
+          title: appTitle,
+          themeMode: appTheme.mode,
+          debugShowCheckedModeBanner: false,
+          initialRoute: '/',
+          routes: {'/': (_) => MyHomePage()},
+          theme: ThemeData(
+            accentColor: appTheme.color,
+            brightness: appTheme.mode == ThemeMode.system
+                ? darkMode
+                    ? Brightness.dark
+                    : Brightness.light
+                : appTheme.mode == ThemeMode.dark
+                    ? Brightness.dark
+                    : Brightness.light,
+            visualDensity: VisualDensity.standard,
+            focusTheme: FocusThemeData(
+              glowFactor: is10footScreen() ? 2.0 : 0.0,
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
+  const MyHomePage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var availablePorts = [];
+  bool value = false;
+  int index = 0;
 
-  int _counter = 0;
-
-  String stdoutText = "";
-  StreamController<List<int>>? _controller;
-
-  void _incrementCounter() async {
-    var cmd = ProcessCmd('echo', ['hello world'], runInShell: runInShell);
-    await runCmd(cmd, verbose: true);
-
-    // Calling dart
-    cmd = DartCmd(['--version']);
-    await runCmd(cmd, verbose: true);
-
-    stdoutText = "";
-
-    runCmd(PubCmd(['global', 'list']), verbose: true);
-
-    // runCmd(
-    //   ProcessCmd(
-    //     'C:\\Users\\HOME613\\Desktop\\bossac.exe',
-    //     [
-    //       '-d',
-    //       '--port=COM3',
-    //       '-U',
-    //       '-i',
-    //       '-e',
-    //       '-w',
-    //       'C:\\Users\\HOME613\\AppData\\Local\\Temp\\arduino_build_168554/Blink.ino.bin',
-    //       '-R'
-    //     ],
-    //   ),
-    //   verbose: true,
-    // ).asStream().listen((event) {
-    //   print("");
-    //   print(event.stdout.toString());
-    //   setState(() {
-    //     stdoutText += event.stdout.toString();
-    //   });
-    // });
-    ProcessResult result =  await runCmd(
-        ProcessCmd(
-          'C:\\Users\\HOME613\\Desktop\\bossac.exe',
-          [
-            '-d',
-            '--port=COM3',
-            '-U',
-            '-i',
-            '-e',
-            '-w',
-            'C:\\Users\\HOME613\\AppData\\Local\\Temp\\arduino_build_168554/Blink.ino.bin',
-            '-R'
-          ],
-        ),
-        verbose: true,
-      stdout: _controller?.sink
-    );
-    print(">>>>>>>>");
-    print(result.stdout.toString());
-    print(result.exitCode.toString());
-    print(result.stderr.toString());
-
-    setState(() {
-      _counter++;
-
-      stdoutText += result.stderr.toString();
-      stdoutText += result.stdout.toString();
-    });
-  }
-
-  void initPorts() {
-    print(">> SerialPort.availablePorts ${SerialPort.availablePorts}");
-    setState(() => availablePorts = SerialPort.availablePorts);
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    initPorts();
-
-    _controller?.stream.listen((event) {
-      print(">>> controller : $event");
-    });
-  }
+  final colorsController = ScrollController();
+  final settingsController = ScrollController();
 
   @override
   void dispose() {
-    // TODO: implement dispose
-    _controller?.close();
+    colorsController.dispose();
+    settingsController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Expanded(
-              child: Scrollbar(
-                child: ListView(
-                  children: [
-                    for (final address in availablePorts)
-                      Builder(builder: (context) {
-                        final port = SerialPort(address);
-                        return ExpansionTile(
-                          title: Text(address),
-                          children: [
-                            CardListTile('Description', port.description),
-                            CardListTile('Transport', port.transport.toTransport()),
-                            CardListTile('USB Bus', port.busNumber?.toPadded()),
-                            CardListTile('USB Device', port.deviceNumber?.toPadded()),
-                            CardListTile('Vendor ID', port.vendorId?.toHex()),
-                            CardListTile('Product ID', port.productId?.toHex()),
-                            CardListTile('Manufacturer', port.manufacturer),
-                            CardListTile('Product Name', port.productName),
-                            CardListTile('Serial Number', port.serialNumber),
-                            CardListTile('MAC Address', port.macAddress),
-                          ],
-                        );
-                      }),
-                  ],
-                ),
-              ),
+    final appTheme = context.watch<AppTheme>();
+    return NavigationView(
+      appBar: NavigationAppBar(
+        height: !kIsWeb ? appWindow.titleBarHeight : 31.0,
+        title: () {
+          if (kIsWeb) return Text(appTitle);
+          return MoveWindow(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(appTitle),
             ),
-            Expanded(
-                child: ListView(
-              children: [
-                Text("${stdoutText}"),
-              ],
-            )),
-            ButtonBar(
-              children: [
-                ElevatedButton(
-                    onPressed: () async {
-                      setState(() => availablePorts = SerialPort.availablePorts);
-                    },
-                    child: Text("새로고침")),
-                ElevatedButton(
-                    onPressed: () async {
-                      final file = OpenFilePicker()
-                        ..filterSpecification = {
-                          'Word Document (*.doc)': '*.doc',
-                          'Web Page (*.htm; *.html)': '*.htm;*.html',
-                          'Text Document (*.txt)': '*.txt',
-                          'All Files': '*.*'
-                        }
-                        ..defaultFilterIndex = 0
-                        ..defaultExtension = 'doc'
-                        ..title = 'Select a document';
-
-                      final result = file.getFile();
-                      if (result != null) {
-                        print(result.path);
-                      }
-                    },
-                    child: Text("파일선택"))
-              ],
-            )
-          ],
-        ),
+          );
+        }(),
+        // actions: kIsWeb
+        //     ? null
+        //     : MoveWindow(
+        //         child: Row(children: [Spacer(), WindowButtons()]),
+        //       ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      useAcrylic: false,
+      pane: NavigationPane(
+        selected: index,
+        onChanged: (i) => setState(() => index = i),
+        header: Container(
+          height: kOneLineTileHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+          child: FlutterLogo(
+            style: FlutterLogoStyle.horizontal,
+            size: 100,
+          ),
+        ),
+        displayMode: appTheme.displayMode,
+        indicatorBuilder: ({
+          required BuildContext context,
+          int? index,
+          required List<Offset> Function() offsets,
+          required List<Size> Function() sizes,
+          required Axis axis,
+          required Widget child,
+        }) {
+          if (index == null) return child;
+          assert(debugCheckHasFluentTheme(context));
+          final theme = NavigationPaneTheme.of(context);
+          switch (appTheme.indicator) {
+            case NavigationIndicators.end:
+              return EndNavigationIndicator(
+                index: index,
+                offsets: offsets,
+                sizes: sizes,
+                child: child,
+                color: theme.highlightColor,
+                curve: theme.animationCurve ?? Curves.linear,
+                axis: axis,
+              );
+            case NavigationIndicators.sticky:
+              return NavigationPane.defaultNavigationIndicator(
+                index: index,
+                context: context,
+                offsets: offsets,
+                sizes: sizes,
+                axis: axis,
+                child: child,
+              );
+            default:
+              return NavigationIndicator(
+                index: index,
+                offsets: offsets,
+                sizes: sizes,
+                child: child,
+                color: theme.highlightColor,
+                curve: theme.animationCurve ?? Curves.linear,
+                axis: axis,
+              );
+          }
+        },
+        items: [
+          PaneItemHeader(header: Text('User Interaction')),
+          PaneItem(icon: Icon(Icons.input), title: Text('Inputs')),
+          PaneItem(icon: Icon(Icons.format_align_center), title: Text('Forms')),
+          PaneItemSeparator(),
+          PaneItem(icon: Icon(Icons.miscellaneous_services), title: Text('Others')),
+          PaneItem(icon: Icon(Icons.color_lens_outlined), title: Text('Colors')),
+          PaneItem(icon: Icon(Icons.title), title: Text('Typography')),
+          PaneItem(icon: Icon(Icons.phone_android), title: Text('Mobile')),
+        ],
+        autoSuggestBox: AutoSuggestBox(
+          controller: TextEditingController(),
+          items: ['Item 1', 'Item 2', 'Item 3', 'Item 4'],
+        ),
+        autoSuggestBoxReplacement: Icon(Icons.search),
+        footerItems: [
+          PaneItemSeparator(),
+          PaneItem(icon: Icon(Icons.settings), title: Text('Settings')),
+        ],
+      ),
+      content: NavigationBody(index: index, children: [
+
+        InputsPage(),
+        Forms(),
+        Others(),
+        ColorsPage(controller: colorsController),
+        TypographyPage(),
+        Mobile(),
+        Settings(controller: settingsController),
+      ]),
     );
   }
 }
 
-class CardListTile extends StatelessWidget {
-  final String name;
-  final String? value;
-
-  CardListTile(this.name, this.value);
+class WindowButtons extends StatelessWidget {
+  const WindowButtons({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(value ?? 'N/A'),
-        subtitle: Text(name),
-      ),
+    assert(debugCheckHasFluentTheme(context));
+    assert(debugCheckHasFluentLocalizations(context));
+    final ThemeData theme = FluentTheme.of(context);
+    final buttonColors = WindowButtonColors(
+      iconNormal: theme.inactiveColor,
+      iconMouseDown: theme.inactiveColor,
+      iconMouseOver: theme.inactiveColor,
+      mouseOver: ButtonThemeData.buttonColor(theme.brightness, {ButtonStates.hovering}),
+      mouseDown: ButtonThemeData.buttonColor(theme.brightness, {ButtonStates.pressing}),
     );
+    final closeButtonColors = WindowButtonColors(
+      mouseOver: Colors.red,
+      mouseDown: Colors.red.dark,
+      iconNormal: theme.inactiveColor,
+      iconMouseOver: Colors.red.basedOnLuminance(),
+      iconMouseDown: Colors.red.dark.basedOnLuminance(),
+    );
+    return Row(children: [
+      Tooltip(
+        message: FluentLocalizations.of(context).minimizeWindowTooltip,
+        child: MinimizeWindowButton(colors: buttonColors),
+      ),
+      Tooltip(
+        message: FluentLocalizations.of(context).restoreWindowTooltip,
+        child: MaximizeWindowButton(colors: buttonColors),
+      ),
+      Tooltip(
+        message: FluentLocalizations.of(context).closeWindowTooltip,
+        child: CloseWindowButton(colors: closeButtonColors),
+      ),
+    ]);
   }
 }
