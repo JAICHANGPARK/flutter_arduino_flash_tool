@@ -1,4 +1,4 @@
-# flutter_cmd_tester
+# flutter_arduino_flash_tool
 
 A new Flutter project.
 
