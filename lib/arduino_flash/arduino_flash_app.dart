@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:io';
 
@@ -35,18 +34,15 @@ class ArduinoFlashApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ArduinoFlashApp Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const ArduinoFlashHomePage(title: 'Flutter Demo Home Page'),
+      title: 'Arduino Flash App Demo',
+      theme: ThemeData(primarySwatch: Colors.indigo),
+      home: const ArduinoFlashHomePage(title: 'Angel Ankle Module Flash App'),
     );
   }
 }
 
 class ArduinoFlashHomePage extends StatefulWidget {
   const ArduinoFlashHomePage({Key? key, required this.title}) : super(key: key);
-
   final String title;
 
   @override
@@ -60,6 +56,9 @@ class _ArduinoFlashHomePageState extends State<ArduinoFlashHomePage> {
 
   String stdoutText = "";
   StreamController<List<int>>? _controller;
+  String bossacToolPath = "";
+  String binFilePath = "";
+  String selectedCom = "";
 
   void _incrementCounter() async {
     var cmd = ProcessCmd('echo', ['hello world'], runInShell: runInShell);
@@ -95,7 +94,7 @@ class _ArduinoFlashHomePageState extends State<ArduinoFlashHomePage> {
     //     stdoutText += event.stdout.toString();
     //   });
     // });
-    ProcessResult result =  await runCmd(
+    ProcessResult result = await runCmd(
         ProcessCmd(
           'C:\\Users\\HOME613\\Desktop\\bossac.exe',
           [
@@ -110,8 +109,47 @@ class _ArduinoFlashHomePageState extends State<ArduinoFlashHomePage> {
           ],
         ),
         verbose: true,
-        stdout: _controller?.sink
-    );
+        stdout: _controller?.sink);
+    print(">>>>>>>>");
+    print(result.stdout.toString());
+    print(result.exitCode.toString());
+    print(result.stderr.toString());
+
+    setState(() {
+      _counter++;
+
+      stdoutText += result.stderr.toString();
+      stdoutText += result.stdout.toString();
+    });
+  }
+
+  void _burn() async {
+    var cmd = ProcessCmd('echo', ['hello world'], runInShell: runInShell);
+    await runCmd(cmd, verbose: true);
+
+    // Calling dart
+    cmd = DartCmd(['--version']);
+    await runCmd(cmd, verbose: true);
+
+    stdoutText = "";
+
+    runCmd(PubCmd(['global', 'list']), verbose: true);
+
+    ProcessResult result = await runCmd(
+        ProcessCmd(
+          '${bossacToolPath}',
+          [
+            '-d',
+            '--port=${selectedCom}',
+            '-U',
+            '-i',
+            '-e',
+            '-w',
+            '${binFilePath}',
+            '-R'
+          ],
+        ),
+        verbose: true);
     print(">>>>>>>>");
     print(result.stdout.toString());
     print(result.exitCode.toString());
@@ -150,81 +188,170 @@ class _ArduinoFlashHomePageState extends State<ArduinoFlashHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      appBar: AppBar(title: Text(widget.title)),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            ListTile(
+              title: Text("프로덕트"),
+              subtitle: Text("엔젤앵클"),
+            ),
+            ListTile(
+              title: Text("부서"),
+              subtitle: Text("로봇연구개발팀"),
+            ),
+            ListTile(
+              title: Text("개발"),
+              subtitle: Text("박제창"),
+            ),
+            ListTile(
+              title: Text("(주)엔젤로보틱스"),
+            ),
+          ],
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
             Expanded(
-              child: Scrollbar(
-                child: ListView(
-                  children: [
-                    for (final address in availablePorts)
-                      Builder(builder: (context) {
-                        final port = SerialPort(address);
-                        return ExpansionTile(
-                          title: Text(address),
-                          children: [
-                            CardListTile('Description', port.description),
-                            CardListTile('Transport', port.transport.toTransport()),
-                            CardListTile('USB Bus', port.busNumber?.toPadded()),
-                            CardListTile('USB Device', port.deviceNumber?.toPadded()),
-                            CardListTile('Vendor ID', port.vendorId?.toHex()),
-                            CardListTile('Product ID', port.productId?.toHex()),
-                            CardListTile('Manufacturer', port.manufacturer),
-                            CardListTile('Product Name', port.productName),
-                            CardListTile('Serial Number', port.serialNumber),
-                            CardListTile('MAC Address', port.macAddress),
-                          ],
-                        );
-                      }),
-                  ],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Com"),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        for (final address in availablePorts)
+                          Builder(builder: (context) {
+                            final port = SerialPort(address);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedCom = address;
+                                });
+                              },
+                              child: ExpansionTile(
+                                onExpansionChanged: (v) {
+                                  setState(() {
+                                    selectedCom = address;
+                                  });
+                                },
+                                title: Text(address),
+                                children: [
+                                  CardListTile('Description', port.description),
+                                  CardListTile('Transport',
+                                      port.transport.toTransport()),
+                                  CardListTile(
+                                      'USB Bus', port.busNumber?.toPadded()),
+                                  CardListTile('USB Device',
+                                      port.deviceNumber?.toPadded()),
+                                  CardListTile(
+                                      'Vendor ID', port.vendorId?.toHex()),
+                                  CardListTile(
+                                      'Product ID', port.productId?.toHex()),
+                                  CardListTile(
+                                      'Manufacturer', port.manufacturer),
+                                  CardListTile(
+                                      'Product Name', port.productName),
+                                  CardListTile(
+                                      'Serial Number', port.serialNumber),
+                                  CardListTile('MAC Address', port.macAddress),
+                                ],
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            Expanded(
-                child: ListView(
-                  children: [
-                    Text("${stdoutText}"),
-                  ],
-                )),
             ButtonBar(
               children: [
                 ElevatedButton(
                     onPressed: () async {
-                      setState(() => availablePorts = SerialPort.availablePorts);
+                      setState(
+                          () => availablePorts = SerialPort.availablePorts);
                     },
-                    child: Text("새로고침")),
+                    child: Text("포트 새로고침")),
+              ],
+            ),
+            Divider(color: Colors.black),
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Output"),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      Text("${stdoutText}"),
+                    ],
+                  ),
+                ),
+              ],
+            )),
+            Divider(color: Colors.black),
+            SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("선택한 포트: $selectedCom"),
+                  Text("선택한 툴 경로: $bossacToolPath"),
+                  Text("선택한 Bin 파일: $binFilePath"),
+                ],
+              ),
+            ),
+            ButtonBar(
+              children: [
                 ElevatedButton(
                     onPressed: () async {
                       final file = OpenFilePicker()
                         ..filterSpecification = {
+                          'All Files': '*.*',
                           'Word Document (*.doc)': '*.doc',
                           'Web Page (*.htm; *.html)': '*.htm;*.html',
                           'Text Document (*.txt)': '*.txt',
-                          'All Files': '*.*'
                         }
                         ..defaultFilterIndex = 0
-                        ..defaultExtension = 'doc'
-                        ..title = 'Select a document';
+                        ..defaultExtension = '*.*'
+                        ..title = 'Select a Flash Tool';
 
                       final result = file.getFile();
                       if (result != null) {
                         print(result.path);
+                        setState(() {
+                          bossacToolPath = result.path;
+                        });
                       }
                     },
-                    child: Text("파일선택"))
+                    child: Text("툴 선택")),
+                ElevatedButton(
+                    onPressed: () async {
+                      final file = OpenFilePicker()
+                        ..filterSpecification = {
+                          'All Files': '*.*',
+                          'Word Document (*.doc)': '*.doc',
+                          'Web Page (*.htm; *.html)': '*.htm;*.html',
+                          'Text Document (*.txt)': '*.txt',
+                        }
+                        ..defaultFilterIndex = 0
+                        ..defaultExtension = '*.*'
+                        ..title = 'Select a bin file';
+
+                      final result = file.getFile();
+                      if (result != null) {
+                        print(result.path);
+                        setState(() {
+                          binFilePath = result.path;
+                        });
+                      }
+                    },
+                    child: Text("파일선택")),
+                ElevatedButton(onPressed: _burn, child: Text("Burn"))
               ],
             )
           ],
@@ -233,8 +360,9 @@ class _ArduinoFlashHomePageState extends State<ArduinoFlashHomePage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.red,
+        tooltip: 'Flash Test',
+        child: const Icon(Icons.upload_file),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
