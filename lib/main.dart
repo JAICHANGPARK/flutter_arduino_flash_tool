@@ -15,8 +15,8 @@ import 'fluent_example/others.dart';
 import 'fluent_example/settings.dart';
 import 'fluent_example/typography.dart';
 
-const String appTitle = 'Fluent UI Showcase for Flutter';
-
+// const String appTitle = 'Fluent UI Showcase for Flutter';
+const String appTitle = 'Angel Ankle 통신모듈 Flash Tool';
 late bool darkMode;
 
 /// Checks if the current environment is a desktop environment.
@@ -41,8 +41,7 @@ void main() async {
   } else {
     darkMode = true;
   }
-  runApp(MyApp());
-  if (isDesktop)
+  if (isDesktop){
     doWhenWindowReady(() {
       final win = appWindow;
       win.minSize = Size(410, 640);
@@ -51,6 +50,10 @@ void main() async {
       win.title = appTitle;
       win.show();
     });
+  }
+
+  // runApp(MyApp());
+  runApp(ArduinoFlashApp());
 }
 
 class MyApp extends StatelessWidget {
